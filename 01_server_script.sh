@@ -1,5 +1,9 @@
 #!/bin/bash
 
+#
+# Execute this script after installation of Debian Stratch minimal
+#
+
 # - install busybox and dropbear
 apt update && apt install busybox dropbear openssh-server
 # - Edit your `/etc/initramfs-tools/initramfs.conf` and set `BUSYBOX=y`
@@ -10,9 +14,8 @@ echo "ready?"
 read input
 echo "now scp your ssh public key to /root/.ssh/id_rsa.pub"
 read input
-# - `mkdir -p /etc/initramfs-tools/root/.ssh/`
-mkdir -p /etc/initramfs-tools/root/.ssh/
- /etc/initramfs-tools/root/.ssh/authorized_keys
+
+# /etc/initramfs-tools/root/.ssh/authorized_keys
 sh -c "cat id_rsa.pub >> /etc/initramfs-tools/root/.ssh/authorized_keys"
 echo "have you the rescue mode activated?
 read input
