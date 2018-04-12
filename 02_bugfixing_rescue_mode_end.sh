@@ -2,7 +2,7 @@
 
 update-initramfs -u
 update-grub
-exit
+logout
 
 umount /mnt/var/ /mnt/backup /mnt/boot /mnt/dev /mnt/sys /mnt/proc
 umount /mnt/
