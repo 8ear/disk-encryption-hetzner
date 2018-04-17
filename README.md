@@ -106,7 +106,7 @@ ssh <NAME>
 After a few seconds the dropbear ssh server is coming up on your system, connect to it and unlock your system like this:
 
 ```bash
-ssh -i .ssh/hetzner_unlock root@<yourserverip>
+ssh -i ~/.ssh/hetzner_unlock root@<yourserverip>
 # or 
 ssh <NAME>_unlock
 ```
@@ -118,7 +118,7 @@ echo -ne "<yourstrongpassphrase>" > /lib/cryptsetup/passfifo
 ## Login to Server
 
 ```bash
-ssh -i .ssh/hetzner_login root@<yourserverip>
+ssh -i ~/.ssh/hetzner_login root@<yourserverip>
 # or
 ssh <NAME>
 ```
