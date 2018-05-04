@@ -68,19 +68,21 @@ ssh <NAME>
 
 # Server Configuration
 
-## First steps in rescue image
+## Install Base Distribution | First steps in rescue image
 
 1. Boot to the rescue system via hetzners server management page
 2. install a minimal Debian Stretch (e.g. 9.4) with hetzners [installimage](https://wiki.hetzner.de/index.php/Installimage) script 
 3. choose the following logical volumes on system or modifiy the tasks later on your own setup:
  
    ```
-   PART /boot / ext3 / 1024M
+   PART /boot ext3 1024M
    PART lvm vg0 all
 
-   LV vg0 swap swap    swap    10G
-   LV vg0 root /       ext4    50G
+   LV vg0 swap swap    swap    6G
+   LV vg0 root /       ext4    10G
    LV vg0 var  /var    ext4    100G
+   LV vg0 log  /var/log ext4   20G
+   LV vg0 backup /backup xfs  200G
    ```
    
    `The Sizes can be modified later, but better customize it to your requirements yet.`
@@ -99,7 +101,7 @@ ssh <NAME>
 5. reboot and ssh into your fresh installed ubuntu 
     * [UNTESTED] -> perhaps this steps can be skipped
 
-
+## Setup debian minimal server 
 
 # Start Server
 ## Unlock Server
