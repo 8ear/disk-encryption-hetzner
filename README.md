@@ -28,6 +28,7 @@ This generates the following output with `ls la ~/.ssh`:
 content of ssh `~/.ssh/config`:
 ```bash
 echo "
+# For disk encryption unlock
 Host unlock_<NAME>
 	User root
 	Hostname <IP>
@@ -36,14 +37,15 @@ Host unlock_<NAME>
     PreferredAuthentications publickey
     IdentityFile ~/.ssh/hetzner_unlock
 
+# For Rescure Mode
 Host rescue_<NAME>
 	User root
 	Hostname <IP>
     HostKeyAlias rescue_<NAME>
     Port 22
-    PreferredAuthentications publickey
     IdentityFile ~/.ssh/hetzner_login
 
+# For normal Login
 Host <NAME>
 	User root
 	Hostname <IP>
@@ -59,9 +61,11 @@ Host <NAME>
 ```bash
 # For rescue System:
 ssh rescue_<NAME>
+
 # For unlock the System:
 ssh unlock_<NAME>
-# For System:
+
+# For normal login to the System:
 ssh <NAME>
 
 ```
@@ -98,10 +102,138 @@ ssh <NAME>
    I want to prevent that my root partition is full, because a image required to much space or a logifle is to big.''
 
 4. after you adjusted all parameters in the install config file, press F10 to install the ubuntu minimal system
-5. reboot and ssh into your fresh installed ubuntu 
-    * [UNTESTED] -> perhaps this steps can be skipped
 
-## Setup debian minimal server 
+## Setup Server for Disk Encrpytion | Second steps in rescure image
+Execute this script after installation of Debian Stretch minimal IN RESCUE MODE.
+
+
+```bash
+# Mount all:
+mount /dev/vg0/root /mnt
+mount /dev/vg0/backup /mnt/backup
+mount /dev/vg0/var /mnt/var
+mount /dev/vg0/log /mnt/var/log
+mount --bind /dev /mnt/dev
+mount --bind /sys /mnt/sys
+mount --bind /proc /mnt/proc
+mount /dev/sda1 /mnt/boot  # OR for software raid: mount /dev/md0 /mnt/boot
+
+# To let the system know there is a new crypto device we need to edit the cryptab(/etc/crypttab):
+
+echo "crypt /dev/sda2 none luks" >> /mnt/etc/crypttab # or for software raid: echo "crypt /dev/md1 none luks" >> /mnt/etc/crypttab
+
+# Change chroot environment
+chroot /mnt
+
+# - install busybox and dropbear
+apt update && apt install -y busybox dropbear openssh-server cryptsetup lvm2 python
+
+# Python package for Ansible enabled
+# - Edit your `/etc/initramfs-tools/initramfs.conf` and set `BUSYBOX=y`
+sed -i 's/BUSYBOX=auto/BUSYBOX=y/g' /etc/initramfs-tools/initramfs.conf
+sed -i 's/NO_START=1/NO_START=0/g' /etc/default/dropbear
+# Deactivate lvmetad
+sed -i 's/use_lvmetad = 1/use_lvmetad = 0/g' /etc/lvm/lvm.conf
+
+
+# Copy SSH public keys
+echo "now copy your hetzner_unlock ssh public key to /etc/dropbear-initramfs/authorized_keys"
+read input
+nano /etc/dropbear-initramfs/authorized_keys
+
+echo "now copy your hetzner_login ssh public key to /root/.ssh/id_rsa.pub"
+read input
+nano /root/authorized_keys
+
+
+# Regenerate the initramfs:
+update-initramfs -u
+update-grub
+grub-install /dev/sda # and for software raid: grub-install /dev/sdb
+
+# To be sure the network interface is coming up:
+echo "/sbin/ifdown --force enp" >> /etc/rc.local
+echo "/sbin/ifup --force eth0" >> /etc/rc.local
+
+# leave chroot environment
+exit
+
+# Create backup directory
+mkdir /oldroot
+
+# umount all what should not be backuped
+umount /mnt/boot
+umount /mnt/dev
+umount /mnt/sys
+umount /mnt/proc
+
+# sync all to backup directory
+rsync -av /mnt/ /oldroot/
+
+# umount all other after backup
+umount /mnt/backup
+umount /mnt/var/log
+umount /mnt/var
+umount /mnt
+
+
+#Backup your old vg0 configuration to keep things simple and remove the old volume group
+vgcfgbackup vg0 -f vg0.freespace
+vgchange -a n
+vgremove vg0
+
+# After this, we encrypt our raid 1 now.
+# for software raid: cryptsetup --cipher aes-xts-plain64 --key-size 256 --hash sha256 --iter-time 6000 luksFormat /dev/md1 
+cryptsetup --cipher aes-xts-plain64 --key-size 256 --hash sha256 --iter-time 6000 luksFormat /dev/sda2
+#(!!!Choose a strong passphrase (something like `pwgen 64 1`)!!!)
+
+cryptsetup luksOpen /dev/sda2 crypt # OR for software raid: cryptsetup luksOpen /dev/md1 crypt
+pvcreate /dev/mapper/crypt
+cp vg0.freespace /etc/lvm/backup/vg0
+
+# Now edit the `id` (UUID from above) and `device` (/dev/mapper/cryptroot) property in the file according to our installation
+echo "now you edit as next step the vg0 backup for the restore you need to replace the blkid and device path of the 'pv' only with:"
+echo "id: `blkid /dev/mapper/crypt`"
+echo "device: blkid /dev/mapper/crypt"
+read input
+vi /etc/lvm/backup/vg0
+#- Restore the vgconfig: 
+vgcfgrestore vg0
+vgchange -a y vg0
+
+# I choose ext4 for root and log because its so stable and great. But for the backup and var volume I choose xfs because its easier to resize in live mode and can handle bigger files. You can choose what you want!
+#Ok, the filesystem is missing, lets create it:
+mkfs.ext4 /dev/vg0/root
+mkfs.xfs /dev/vg0/backup
+mkfs.xfs /dev/vg0/var
+mkfs.ext4 /dev/vg0/log
+mkswap /dev/vg0/swap
+
+# Now we mount and copy our installation back on the encrypted LVM:
+mount /dev/vg0/root /mnt/
+mkdir -p /mnt/var /mnt/backup
+mount /dev/vg0/var /mnt/var/
+mkdir -p /mnt/var/log
+mount /dev/vg0/log /mnt/var/log
+mount /dev/vg0/backup /mnt/backup
+rsync -av /oldroot/ /mnt/
+
+
+# umount all
+umount /mnt/backup 
+umount /mnt/var/log 
+umount /mnt/var
+umount /mnt
+# deactivate volume group
+vgchange -a n
+# close encrypted disk
+cryptsetup luksClose crypt
+# sync disks
+sync
+# Now ready for reboot
+reboot
+```
+Have fun with your new system!
 
 # Start Server
 ## Unlock Server
