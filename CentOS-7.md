@@ -182,6 +182,10 @@ chmod 600 ~/.ssh/authorized_keys
 restorecon -r ~/.ssh/
 exit
 
+# Set SELinux to permissive mode:
+vi /etc/sysconfig/selinux
+# Change from enforcing to permissive
+
 # Update System
 sudo yum update -y && sudo yum clean all
 
