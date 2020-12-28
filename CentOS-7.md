@@ -168,8 +168,16 @@ sudo chmod 400 /etc/dropbear/keys/*_key; sudo chmod 444 /etc/dropbear/keys/*.pub
 # Add authorized SSH key
 sudo nano /etc/dropbear/keys/authorized_keys
 
+# Create a configuration .conf file under the /etc/dracut.conf.d/ directory with the following contents:
+echo 'omit_dracutmodules+="ifcfg"' >> /etc/dracut.conf.d/omit_dracutmodule.conf
+
 # Update dracut
 sudo dracut -f -v
+
+# fix network settings for hetzner
+# see https://docs.hetzner.com/de/robot/dedicated-server/network/net-config-cent-os
+vi /etc/sysconfig/network-scripts/ifcfg-enp3s0
+
 
 # SSH settings for user
 su <user>
