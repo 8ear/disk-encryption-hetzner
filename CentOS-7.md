@@ -76,7 +76,7 @@ ssh <NAME>
 
 ## Install Base Distribution | First steps in rescue image
 1. Activate Hetzner Rescue Mode
-```
+```bash
 ## Setup Server for Disk Encrpytion | Second steps in rescure image
 
 # Next, fill the named rootfs partition with pseudo-random data. This will take a little over a half an hour to complete.
@@ -175,7 +175,7 @@ sudo dracut -f -v
 su <user>
 ```
 Add user ssh key: `ssh-keygen -t ecdsa -C <user>@<hostname>`
-```
+```bash
 # Add your user SSH pub key
 vi ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
